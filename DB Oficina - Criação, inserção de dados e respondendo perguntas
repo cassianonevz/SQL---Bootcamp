@@ -1,0 +1,468 @@
+-- CRIAÇÃO DO DB Oficina - Desafio 2 Módulo 3 DIO -- 
+
+CREATE DATABASE oficina;
+USE oficina;
+
+CREATE TABLE veiculo(
+	id_veiculo INT NOT NULL,
+	modelo VARCHAR(20) NOT NULL,
+	fabricante VARCHAR(20) NOT NULL,
+	placa CHAR(7) NOT NULL UNIQUE,
+	renavam CHAR(11) NOT NULL UNIQUE,
+	id_cliente INT NOT NULL,
+CONSTRAINT pk_veiculo PRIMARY KEY (id_veiculo)
+);
+
+CREATE TABLE cliente(
+	id_cliente INT NOT NULL,
+	pnome VARCHAR(15) NOT NULL,
+	mnome VARCHAR(15) NOT NULL,
+	unome VARCHAR(15) NOT NULL,
+	cpf CHAR(11) NOT NULL UNIQUE,
+	endereco VARCHAR(50) NOT NULL,
+CONSTRAINT pk_cliente PRIMARY KEY (id_cliente)
+);
+
+ALTER TABLE veiculo
+ADD CONSTRAINT fk_cliente FOREIGN KEY (id_cliente)
+REFERENCES cliente(id_cliente);
+
+CREATE TABLE os(
+	id_os INT NOT NULL,
+	data_emissao DATE NOT NULL,
+	valor_os FLOAT NOT NULL,
+	status_os ENUM('Em avaliação', 'Em serviço', 'Concluído') DEFAULT ('Em avaliação'),
+	id_cliente INT NOT NULL,
+CONSTRAINT pk_os PRIMARY KEY (id_os),
+CONSTRAINT fk_clienteos FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente)
+);
+
+CREATE TABLE referencia_servico(
+	id_refservico INT NOT NULL,
+	nome_servico VARCHAR(45) NOT NULL UNIQUE,
+	valor_servico FLOAT NOT NULL,
+CONSTRAINT pk_refserv PRIMARY KEY (id_refservico)
+);
+
+CREATE TABLE av_maodeobra(
+	id_os INT NOT NULL,
+	id_refservico INT NOT NULL,
+CONSTRAINT fk_osserv FOREIGN KEY (id_os) REFERENCES os(id_os),
+CONSTRAINT fk_refserv FOREIGN KEY (id_refservico) REFERENCES referencia_servico(id_refservico)
+);
+
+CREATE TABLE peca(
+	id_peca INT NOT NULL,
+	nome_peca VARCHAR(45) NOT NULL,
+	valor_peca FLOAT NOT NULL,
+CONSTRAINT pk_peca PRIMARY KEY (id_peca)
+);
+
+CREATE TABLE sub_peca(
+	id_os INT NOT NULL,
+	id_peca INT NOT NULL,
+CONSTRAINT fk_ospeca FOREIGN KEY (id_os) REFERENCES os(id_os),
+CONSTRAINT fk_peca FOREIGN KEY (id_peca) REFERENCES peca(id_peca)
+);
+
+CREATE TABLE fornecedor(
+	id_fornecedor INT NOT NULL,
+	razaosocial_fornecedor VARCHAR(45) NOT NULL UNIQUE,
+	cnpj_fornecedor CHAR(12) NOT NULL UNIQUE,
+	endereco_fornecedor VARCHAR(45) NOT NULL,
+CONSTRAINT pk_fornecedor PRIMARY KEY (id_fornecedor)
+);
+
+CREATE TABLE fornece_peca(
+	id_fornecedor INT NOT NULL,
+	id_peca INT NOT NULL,
+CONSTRAINT fk_fornecedor FOREIGN KEY (id_fornecedor) REFERENCES fornecedor(id_fornecedor),
+CONSTRAINT fk_pecafornecedor FOREIGN KEY (id_peca) REFERENCES peca(id_peca)
+);
+
+CREATE TABLE mecanico(
+	id_mecanico INT NOT NULL,
+	nome_mecanico VARCHAR(45) NOT NULL,
+	endereco_mecanico VARCHAR(45) NOT NULL,
+CONSTRAINT pk_mecanico PRIMARY KEY (id_mecanico)
+);
+
+CREATE TABLE avaliacao_os(
+	id_os INT NOT NULL,
+	id_mecanico INT NOT NULL,
+CONSTRAINT fk_idosmec FOREIGN KEY (id_os) REFERENCES os(id_os),
+CONSTRAINT fk_mecanico FOREIGN KEY (id_mecanico) REFERENCES mecanico(id_mecanico)
+);
+
+CREATE TABLE especialidade(
+	id_especialidade INT NOT NULL,
+	nome_especialidade VARCHAR(45) NOT NULL UNIQUE,
+CONSTRAINT pk_especialidade PRIMARY KEY (id_especialidade)
+);
+
+CREATE TABLE esp_mecanico(
+	id_mecanico INT NOT NULL,
+	id_especialidade INT NOT NULL,
+CONSTRAINT fk_espmecanico FOREIGN KEY (id_mecanico) REFERENCES mecanico(id_mecanico),
+CONSTRAINT fk_especialidade FOREIGN KEY (id_especialidade) REFERENCES especialidade(id_especialidade)
+);
+
+-- PERCEBEU-SE AVALIANDO O MODELO RELACIONAL QUE É NECESSÁRIO A MUDANÇA DO SCHEMA --
+-- FAZER O RELACIONAMENTO ENTRE AS ENTIDADES OS e VEÍCULO COM CARDINALIDADE N:M (SENDO NECESSÁRIA A CRIAÇÃO DE UMA ENTIDADE RELACIONAMENTO) --
+
+ALTER TABLE os
+DROP CONSTRAINT fk_clienteos;
+
+ALTER TABLE `oficina`.`os` 
+DROP COLUMN `id_cliente`,
+ADD COLUMN `id_veiculo` INT NOT NULL AFTER `status_os`,
+CHANGE COLUMN `status_os` `status_os` ENUM('Em avaliação', 'Em serviço', 'Concluído') NOT NULL DEFAULT _utf8mb4'Em avaliação' ,
+DROP INDEX `fk_clienteos` ;
+;
+
+CREATE TABLE veiculo_os(
+    id_veiculo INT NOT NULL,
+    id_os INT NOT NULL,
+CONSTRAINT fk_veiculoos FOREIGN KEY (id_veiculo) REFERENCES veiculo(id_veiculo),
+CONSTRAINT fk_osveiculo FOREIGN KEY (id_os) REFERENCES os(id_os)
+);
+
+ALTER TABLE os
+ADD CONSTRAINT fk_oscliente FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente);
+
+-- INSERÇÃO NO DB UTILIZANDO DADOS FICTÍCIOS -- 
+ 
+ INSERT INTO especialidade
+VALUES
+		(1, 'Elétrica e eletrônica'),
+		(2, 'Sistemas de arrefecimento'),
+		(3, 'Sistema de frenagem'),
+		(4, 'Amortecedores e suspensões'),
+		(5, 'Estética'),
+		(6, 'Sistemas de transmissão'),
+		(7, 'Motor');
+
+INSERT INTO mecanico
+VALUES
+		(1, 'Claudemir A. Santos', 'Rua AXC, 230'),
+		(2, 'Valdemir Oliveira', 'Rua KSA, 249'),
+		(3, 'Cristian Silva', 'Rua OSP, 292'),
+		(4, 'Anderson Peixoto', 'Rua OKSA, 203');
+        
+INSERT INTO esp_mecanico (id_especialidade, id_mecanico)
+VALUES
+		(1, 1),
+		(2, 1),
+		(3, 1),
+		(4, 1),
+		(1, 2),
+		(2, 2),
+		(3, 2),
+		(4, 2),
+		(5, 3),
+		(6, 4),
+		(7, 4);
+
+INSERT INTO referencia_servico
+VALUES
+		(1, 'Troca de óleo e filtro', 30),
+		(2, 'Troca de pastilhas de freio', 40),
+		(3, 'Troca de amortecedor dianteiro', 70),
+		(4, 'Troca de amortecedor traseiro', 100),
+		(5, 'Troca de disco de freio', 70),
+		(6, 'Troca de vela de ignição', 70),
+		(7, 'Troca de tensor e correia dentada', 140),
+		(8, 'Troca de embreagem', 210),
+		(9, 'Higienização de ar-condicionado', 30),
+		(10, 'Sangria do óleo de freio', 70),
+		(11, 'Limpeza do TBI', 70),
+		(12, 'Rastreamento com scanner', 80),
+		(13, 'Limpeza do motor', 120),
+		(14, 'Martelinho de ouro', 150),
+		(15, 'Pintura por peça', 190);
+
+INSERT INTO fornecedor
+VALUES
+		(1, 'Autopeças XPTO', 966165950001, 'Rua A, 102'), 
+		(2, 'Autopeças XPSN', 927452470001, 'Rua B, 1010'), 
+		(3, 'Autopeças SIAO', 644781380001, 'Rua C, 2939' ), 
+		(4, 'Autopeças OSPA', 874809640001, 'Rua D, 289');
+
+INSERT INTO peca
+VALUES
+		(1, 'Anel de pistão', 129),
+		(2, 'Bomba elétrica de combustível', 300),
+		(3, 'Bronzina', 156),
+		(4, 'Buzina ou equipamento similar', 150),
+		(5, 'Lâmpada para veículos automotivos', 60),
+		(6, 'Pino e anel de trava (retenção)', 103),
+		(7, 'Pistão de liga leve de alumínio', 260),
+		(8, 'Baterias', 500),
+		(9, 'Terminal de direção', 126),
+		(10, 'Barra de direção', 162),
+		(11, 'Barra de ligação', 176),
+		(12, 'Terminal axial', 150),
+		(13, 'Lonas de atrito', 200),
+		(14, 'Rodas automotivas', 300),
+		(15, 'Vidro de segurança laminado de para-brisas', 1200),
+		(16, 'Vidro de segurança temperado', 999),
+		(17, 'Fluído de freio', 199),
+		(18, 'Catalisador', 128),
+		(19, 'Pastilhas de Freio', 165),
+		(20, 'Discos de Freio', 150),
+		(21, 'Tensor', 80),
+		(22, 'Correia Dentada', 60),
+		(23, 'Vela de ignição', 181),
+		(24, 'Kit Embreagem', 350),
+		(25, 'Amortecedor dianteiro', 205),
+		(26, 'Amortecedor traseiro', 185);
+
+INSERT INTO fornece_peca
+VALUES
+		(2, 21),
+		(2, 15),
+		(3, 24),
+		(3, 18),
+		(3, 25),
+		(4, 11),
+		(2, 9),
+		(2, 26),
+		(4, 23),
+		(4, 10),
+		(4, 23),
+		(1, 5),
+		(2, 5),
+		(2, 1),
+		(1, 21),
+		(1, 6),
+		(4, 19),
+		(4, 8),
+		(2, 18),
+		(2, 7),
+		(4, 10),
+		(3, 13),
+		(4, 9),
+		(4, 6),
+		(1, 14),
+		(3, 11),
+		(4, 22),
+		(1, 19),
+		(2, 25),
+		(3, 3),
+		(4, 13),
+		(2, 7),
+		(1, 1),
+		(3, 13),
+		(2, 15),
+		(1, 14),
+		(2, 16),
+		(3, 7),
+		(4, 13),
+		(2, 1),
+		(3, 3),
+		(2, 7),
+		(2, 5),
+		(2, 22),
+		(4, 26),
+		(1, 9),
+		(4, 19),
+		(2, 4),
+		(3, 25),
+		(4, 24),
+		(2, 2),
+		(1, 12),
+		(2, 17),
+		(3, 20);
+
+INSERT INTO cliente
+VALUES
+		(1, 'Ryan', 'A.', 'Luz' ,42256082588, 'Rua Frederico Moura, 471'),
+		(2, 'Lucas', 'Gabriel', 'Moreira' ,59286963275, 'Avenida Desembargador Moreira, 751'),
+		(3, 'Kevin', 'A.', 'Nunes' ,25772149738, 'Rua Paracatu, 724'),
+		(4, 'Kamilly', 'N.', 'Almeida' ,32469307164, 'Praça da República, 201'),
+		(5, 'Fernanda', 'M.', 'Lima' ,43962194037, 'Travessa Antônio Ferreira, 435'),
+		(6, 'Raquel', 'S.', 'Barros' ,23214581798, 'Rodovia Raposo Tavares, 386'),
+		(7, 'Gabrielly', 'S.', 'Nunes' ,26220643646, 'Avenida Afonso Pena, 658'),
+		(8, 'Vitor', 'Hugo', 'Nascimento' ,22434713247, 'Rua Frederico Moura, 863'),
+		(9, 'Alexandre', 'O.', 'Moura' ,26745958685, 'Avenida Governador José Malcher, 111'),
+		(10, 'Luiz', 'Fernando', 'Correia' ,41518136764, 'Rua Arlindo Nogueira, 795');
+
+INSERT INTO veiculo
+VALUES
+		(1, 'Fiesta Sedan SE 1.0 8V Flex 4p', 'Ford', 'LXT1944' ,89161779648, 3),
+		(8, 'Hummer Hard-Top 6.5 4x4 Diesel TB', 'AM Gen', 'JQD9581' ,44561660524, 5),
+		(5, 'Ghibli 3.0 V6 330cv Aut.', 'Maserati', 'JTE9472' ,65712827344, 10),
+		(10, 'Way 1.6 Total Flex 8V Mec.', 'Wake', 'JLJ5584' ,38335316899, 4),
+		(6, 'Javali 3.0 4x4 Diesel', 'CBT Jipe', 'JSK1711' ,39165483917, 6),
+		(14, 'Ram 2500 H.DUTY 5.9 SLT 24V CD 4x4 Dies.', 'Dodge', 'JPO6465' ,77762684427, 3),
+		(4, 'Vantage Roadster 4.7 V8 420cv', 'ASTON MART', 'MOK0967' ,90749959342, 1),
+		(3, 'COOPER S 1.6 Aut.', 'Mini', 'MYE5388' ,18984753381, 10),
+		(2, 'H1 1.8 20V Turbo 180cv 2p', 'Lobini', 'NBU6746' ,51078838791, 1),
+		(12, '147 2.0 16V 148cv 4p Semi-Aut.', 'Alfa Romeo', 'JLU9725' ,48637696853, 9),
+		(11, 'OUTLANDER 3.0/ GT 3.0 V6 Aut.', 'Mitsubishi', 'JSP8972' ,54521569582, 2),
+		(7, 'Corolla WG', 'Toyota', 'JRA6394' ,51612256418, 8),
+		(9, 'B-2500 Pick-Up 2.5 Diesel', 'Mazda', 'JPC5867' ,98117842347, 7),
+		(13, 'Cayenne Turbo S 4.5/ 4.8 32V', 'Porsche', 'JNH7962' ,86293398590, 5);
+
+INSERT INTO os
+VALUES
+    (1, '2022-11-18', 957 ,'Concluído', 3),
+    (2, '2022-10-20', 966 ,'Concluído', 1),
+    (3, '2022-08-03', 307 ,'Concluído', 10),
+    (4, '2023-01-07', 902 ,'Concluído', 1),
+    (5, '2023-01-24', 635 ,'Concluído', 10),
+    (6, '2022-06-21', 528 ,'Concluído', 6),
+    (7, '2023-01-18', 939 ,'Concluído', 8),
+    (8, '2022-07-10', 328 ,'Concluído', 5),
+    (9, '2022-12-02', 510 ,'Concluído', 7),
+    (10, '2022-08-17', 949 ,'Concluído', 4),
+    (11, '2022-10-25', 860 ,'Concluído', 2),
+    (12, '2022-08-16', 439 ,'Concluído', 9),
+    (13, '2022-08-13', 233 ,'Concluído', 5),
+    (14, '2022-12-21', 939 ,'Concluído', 3);
+
+INSERT INTO veiculo_os (id_veiculo, id_os)
+VALUES
+		(1, 1),
+		(2, 2),
+		(3, 3),
+		(4, 4),
+		(5, 5),
+		(6, 6),
+		(7, 7),
+		(8, 8),
+		(9, 9),
+		(10, 10),
+		(11, 11),
+		(12, 12),
+		(13, 13),
+		(14, 14);
+
+INSERT INTO av_maodeobra
+VALUES
+		(1, 1),
+		(1, 2),
+		(1, 3),
+		(1, 5),
+		(2, 1),
+		(2, 2),
+		(2, 3),
+		(2, 5),
+		(4, 8),
+		(5, 8),
+		(6, 12),
+		(7, 1),
+		(7, 2),
+		(7, 3),
+		(7, 5),
+		(9, 12),
+		(10, 1),
+		(10, 2),
+		(10, 3),
+		(10, 5),
+		(10, 13),
+		(11, 1),
+		(11, 2),
+		(11, 3),
+		(11, 5),
+		(12, 8),
+		(13, 14),
+		(14, 1),
+		(14, 2),
+		(14, 3),
+		(14, 5),
+		(14, 13);
+
+INSERT INTO avaliacao_os
+VALUES
+    (14, 4),
+    (13, 3),
+    (6, 2),
+    (9, 2),
+    (1, 2),
+    (2, 2),
+    (7, 2),
+    (10, 2),
+    (11, 2),
+    (14, 2),
+    (1, 2),
+    (2, 2),
+    (7, 2),
+    (10, 2),
+    (11, 2),
+    (14, 2),
+    (4, 2),
+    (5, 2),
+    (12, 2),
+    (6, 1),
+    (9, 1),
+    (1, 1),
+    (2, 1),
+    (7, 1),
+    (10, 1),
+    (11, 1),
+    (14, 1),
+    (1, 1),
+    (2, 1),
+    (7, 1),
+    (10, 1),
+    (11, 1),
+    (14, 1),
+    (4, 1),
+    (5, 1),
+    (12, 1),
+    (1, 4),
+    (2, 4),
+    (7, 4),
+    (10, 4),
+    (11, 4),
+    (14, 4),
+    (1, 2),
+    (2, 2),
+    (7, 2),
+    (10, 2),
+    (11, 2),
+    (14, 2),
+    (1, 1),
+    (2, 1),
+    (7, 1),
+    (10, 1),
+    (11, 1),
+    (14, 1);
+ 
+-- Quantos clientes possuem mais de um veículo cadastrado? 
+-- R) Os clientes Ryan A. Luz, Kevin A. Nunes, Fernanda M. Lima, Luis Fernando Correia. Todos eles com 2 carros cada.
+
+SELECT c.id_cliente, CONCAT(c.pnome," ", c.mnome," ", c.unome) as Nome, count(v.id_veiculo)
+FROM cliente as c
+INNER JOIN veiculo as v ON c.id_cliente = v.id_cliente
+GROUP BY c.id_cliente
+HAVING count(v.id_veiculo) >= 2;
+
+-- Quais os mecânicos que mais possuem OS associadas e também quantas especialidades possuem? 
+-- R) Os mecanicos Claudemir e Valdemir, ambos com 11 OS e 4 especialidades associadas.
+
+SELECT m.id_mecanico, m.nome_mecanico, count(DISTINCT av.id_os) as 'Qtd OS', count(DISTINCT id_especialidade) as 'Qtd Especialidades'
+FROM mecanico as m
+INNER JOIN avaliacao_os as av ON m.id_mecanico = av.id_mecanico
+INNER JOIN esp_mecanico as esp ON m.id_mecanico = esp.id_mecanico
+GROUP BY m.id_mecanico;
+
+-- Qual o faturamento do ano de 2022?
+-- R) Em valores fictítios, o faturamento de 2022 foi de R$ 7.016,00. 
+
+SELECT SUM(valor_os)
+FROM OS
+WHERE YEAR(data_emissao) = 2022;
+
+-- Quais as especialidades dos mecânicos? 
+ SELECT espm.id_especialidade, m.id_mecanico, m.nome_mecanico, esp.nome_especialidade
+ FROM especialidade esp
+ INNER JOIN esp_mecanico espm ON esp.id_especialidade = espm.id_especialidade
+ INNER JOIN mecanico m ON m.id_mecanico = espm.id_mecanico
+ ORDER BY id_especialidade asc;
+ 
+ 
+
+ 
+ 
