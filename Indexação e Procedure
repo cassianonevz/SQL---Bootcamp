@@ -1,0 +1,79 @@
+-- RESPONDENDO AS PERGUNTAS DO DESAFIO DIO - PARTE 1 -- 
+
+
+
+1. Qual o departamento com maior número de pessoas? 
+		SELECT d.dName, COUNT(d.Dnumber), SUM(Salary), AVG(Salary)
+		FROM employee e, departament d
+		WHERE e.Dno = d.Dnumber
+		GROUP BY d.dnumber
+		ORDER BY COUNT(d.Dnumber) DESC; 
+    
+Performance de execução (medida através do comando EXPLAIN):
+Antes da criação do índice: Necessária varredura de 12 linhas.
+Índice criado: Atributo dNo (Utilizado como chave de relacionamento) na entidade Employee. 
+
+		CREATE INDEX index_dno_employee ON employee(Dno);
+    
+Depois da criação do índice: Necessária varredura de 5 linhas 
+
+
+
+2. Quais são os departamentos por cidade? 
+Essa resposta é avaliada somente com um select na tabela dept_locations. Foi avaliado também a quantidade de departamentos por cidade:
+
+		SELECT dLocation, COUNT(DISTINCT DNumber) AS 'Qtd_Dpt'
+		FROM dept_locations
+		GROUP BY dLocation
+		ORDER BY Qtd_Dpt desc;
+
+Tabela dept_locations já é composta por dois atributos primary keys, logo já foram criadas com indexação. 
+Performance da consulta acima: Necessária varredura de 5 linhas. 
+
+3. Relação de empregrados por departamento (testando performance pelo departamento administration)
+
+		EXPLAIN SELECT e.Fname, e.Dno, d.Dname
+		FROM employee e, departament d
+		WHERE e.Dno = d.Dnumber and d.Dname = 'Administration';
+        
+Performance de execução (medida através do comando EXPLAIN):
+Antes da criação do índice: Necessária varredura de 4 linhas.
+Índice criado: Atributo dNAME (Utilizado como filtro dentro da função Where) na entidade Departament. 
+
+  	CREATE INDEX index_dname_dept ON departament(Dname);
+
+Depois da criação do índice: Necessária varredura de 4 linhas. Como a base é pequena, o índice não gerou performance para consulta executada. 
+	
+
+** Todos os índices foram do tipo BTREE; 
+
+
+
+-- RESPONDENDO AS PERGUNTAS DO DESAFIO DIO - PARTE 2 --
+
+1. Criar uma PROCEDURE para cadastrar um novo colaborador
+      # Gerando SSN de 9 dígitos com números aleatórios através do comando RAND
+      # Inputar colaborador com piso salarial a partir do menor salário do departamento
+      # Associar o SSR_MGR com base no número do departamento. 
+
+      USE company;
+
+      DELIMITER |
+      CREATE PROCEDURE cadastro_colaborador(
+      IN IFName VARCHAR(15),
+      IN IMinit CHAR(1),
+      IN ILName VARCHAR(15),
+      IN IbDate DATE, 
+      IN IAddress VARCHAR(30),
+      IN ISex ENUM('M', 'F'),
+      IN IDno INT)
+      BEGIN 
+        INSERT INTO employee
+          (Fname, Minit, Lname, SSN, BDate, Address, Sex, Salary, Super_ssn, Dno)
+          VALUES 
+        (IFName, IMinit, ILName, ROUND(RAND()*1000000000,0), IbDate, IAddress, ISex, (select min(salary) from employee e where IDno = e.Dno), (select mgr_ssn from departament d where IDno = d.Dnumber), IDno);
+      END
+      |
+      DELIMITER ;
+
+      CALL cadastro_colaborador('Cassiano', 'N', 'Souza', '1995-10-23','J.J Rescala, 209', 'M', 5);
