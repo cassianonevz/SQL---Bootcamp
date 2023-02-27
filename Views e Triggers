@@ -1,0 +1,168 @@
+-- DESAFIO DIO 2 - MÓDULO 4 -- VIEWS E TRIGGERS
+
+1. Número de empregados por departamento:
+
+		use company;
+
+		CREATE VIEW view_employees_dept AS
+		SELECT d.dnumber, d.dname, count(e.ssn) as 'Qtd_Employees'
+		FROM departament d
+		INNER JOIN employee e ON d.dnumber = e.dno
+		GROUP BY d.dnumber
+		ORDER BY COUNT(e.ssn) desc;
+
+		SELECT *
+		FROM view_employees_dept;
+
+2. Lista de Departamentos e Seus Gerentes: 
+
+		CREATE VIEW view_mgr_dept AS
+		SELECT d.dnumber, d.dname, d.mgr_ssn, d.mgr_start_date, CONCAT(e.fname, " ", e.lname) AS 'Mgr Name', e.Salary
+		FROM departament d
+		INNER JOIN employee e ON d.mgr_ssn = e.ssn;
+
+		SELECT *
+		FROM view_mgr_dept;
+
+3. Projetos com Maior Numero de Empregados: 
+
+		CREATE VIEW view_project_employees AS 
+		SELECT p.Pnumber, P.Pname, COUNT(e.ssn) AS 'Qtd_Employees'
+		FROM works_on W
+		INNER JOIN project p ON p.Pnumber = w.Pno
+		INNER JOIN employee e ON w.Essn = e.ssn
+		GROUP BY p.Pnumber
+		ORDER BY Qtd_Employees desc, p.Pnumber asc;
+
+		SELECT * 
+		FROM view_project_employees;
+
+4. Lista de projetos, departamentos e gerentes: 
+
+		CREATE VIEW view_project_dept AS
+		SELECT p.pnumber, p.pname, d.dname, d.dnumber, d.mgr_ssn, concat(e.fname, ' ', e.lname) AS 'Mgr_Name'
+		FROM works_on w
+		INNER JOIN project p ON p.Pnumber = w.Pno
+		INNER JOIN departament d ON p.Dnum = d.Dnumber
+		INNER JOIN employee e ON d.mgr_ssn = e.ssn
+		GROUP BY p.pname;
+
+		SELECT *
+		FROM view_project_dept;
+
+5. Quais empregados possuem dependentes e se são gerentes: 
+
+COLABORADORES E SEUS DEPENDENTES
+
+    CREATE VIEW view_dependents_employees AS
+		SELECT CONCAT(fName, " ", Minit, " ", lName) as 'Employee', e.ssn, dependent_name, d.sex, d.bdate, d.Relationship
+		FROM employee e
+		INNER JOIN dependent d ON e.ssn = d.essn;
+
+GERENTES E SEUS DEPENDENTES
+
+		CREATE VIEW view_dependents_managers AS
+		SELECT CONCAT(fName, " ", Minit, " ", lName) as 'Employee', e.ssn, dependent_name, d.sex, d.bdate, d.Relationship
+		FROM employee e
+		INNER JOIN dependent d ON e.ssn = d.essn
+		INNER JOIN departament dept ON e.ssn = dept.mgr_ssn;
+
+CRIANDO USUÁRIO E ACESSO A SOMENTE EMPLOYEES E DEPARTAMENTS
+
+-- usuário gerente -- 
+
+		CREATE USER 'usertest'@localhost IDENTIFIED BY '123456789';
+    
+-- permissões de consulta para usuário gerente --
+
+		GRANT SELECT ON company.employee TO 'usertest'@localhost;
+		GRANT SELECT ON company.departament TO 'usertest'@localhost;
+
+-- usuario employee --
+
+		CREATE USER 'employeetest'@localhost IDENTIFIED BY '123456789';
+    
+-- permissões de consulta para usuário employee --
+
+		GRANT SELECT ON company.employee TO 'employeetest'@localhost;
+
+
+CRIANDO TRIGGERS PARA O DB E-COMMERCE 
+
+1 TRIGGER IRÁ INSERIR OS REGISTROS DO CLIENTE QUE ESTÁ DELETANDO SUA CONTA PARA A ENTIDADE EX-CLIENTES
+
+		use ecommerce;
+
+CRIANDO A TABELA DE EX CLIENTES (PESSOA FISICA)
+
+		CREATE TABLE ex_cliente_pf(
+			id_clientepf INT PRIMARY KEY,
+			p_nomepf VARCHAR(15),
+			l_nomepf VARCHAR(15),
+			u_nomepf VARCHAR(15),
+			cpf CHAR(11), 
+			endereco_cliente VARCHAR(50),
+			UF_cliente CHAR(2)
+			);
+
+CRIANDO A TRIGGER BEFORE DELETE PARA INSERIR AS INFORMAÇÕES NA TABELA EX_CLIENTE ANTES DE DELETAR OS DADOS
+
+		DELIMITER |
+		CREATE TRIGGER trigger_exclientes
+		BEFORE DELETE ON cliente_pf
+		FOR EACH ROW
+			BEGIN
+				INSERT INTO ex_cliente_pf 
+				VALUES (old.id_clientepf, old.p_nome, old.m_nome, old.u_nome, old.cpf, old.endereco_cliente, old.uf_cliente);
+			END
+		|
+		DELIMITER ;
+
+REALIZANDO A VALIDAÇÃO DA TRIGGER
+
+		SELECT * FROM cliente_pf;
+
+		DELETE FROM cliente_pf
+		WHERE id_clientepf = 5;
+
+TRIGGER VALIDADE - INFORMAÇÕES TRANSFERIDAS. 
+
+		SELECT * FROM ex_cliente_pf;
+
+		desc pedido;
+
+CRIANDO UMA TRIGGER PARA ATUALIZAR O STATUS DO PEDIDO APÓS STATUS_PAGAMENTO CONCLUÍDO
+ 
+Quando - [status_pagamento] <> 'Processado'
+         [status_pedido] <> 'Em Andamento'
+
+		SELECT * FROM pedido;
+
+ATUALIZANDO PEDIDOS PARA CONDIÇÃO DE PAGAMENTO PENDENTE
+
+		UPDATE pedido
+		SET status_pagamento = 'Pendente',
+			status_pedido = 'Pagamento Pendente'
+		WHERE id_pedido IN (1410, 1587, 2113);
+
+CRIANDO TRIGGER PARA ATUALIZAR STATUS_PEDIDO APÓS PAGAMENTO PROCESSADO
+
+		DELIMITER |
+		CREATE TRIGGER att_status_pedido
+		AFTER UPDATE ON pedido
+		FOR EACH ROW
+			BEGIN 
+				IF new.status_pagamento = 'Processado' THEN
+					SET new.status_pedido = 'Em Andamento';
+				END IF;
+			END;
+		|
+		DELIMITER ;
+
+ATUALIZANDO STATUS_PAGAMENTO DOS PEDIDOS PARA 'PROCESSADO'
+
+		UPDATE pedido
+		SET status_pagamento = 'Processado'
+		WHERE id_pedido IN (1410, 1587, 2113);
+
+VALIDADO STATUS_PEDIDO ALTERADO PARA 'EM ANDAMENTO'
