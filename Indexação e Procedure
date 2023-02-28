@@ -56,24 +56,24 @@ Depois da criação do índice: Necessária varredura de 4 linhas. Como a base �
       # Inputar colaborador com piso salarial a partir do menor salário do departamento
       # Associar o SSR_MGR com base no número do departamento. 
 
-      USE company;
+	      USE company;
 
-      DELIMITER |
-      CREATE PROCEDURE cadastro_colaborador(
-      IN IFName VARCHAR(15),
-      IN IMinit CHAR(1),
-      IN ILName VARCHAR(15),
-      IN IbDate DATE, 
-      IN IAddress VARCHAR(30),
-      IN ISex ENUM('M', 'F'),
-      IN IDno INT)
-      BEGIN 
-        INSERT INTO employee
-          (Fname, Minit, Lname, SSN, BDate, Address, Sex, Salary, Super_ssn, Dno)
-          VALUES 
-        (IFName, IMinit, ILName, ROUND(RAND()*1000000000,0), IbDate, IAddress, ISex, (select min(salary) from employee e where IDno = e.Dno), (select mgr_ssn from departament d where IDno = d.Dnumber), IDno);
-      END
-      |
-      DELIMITER ;
+	      DELIMITER |
+	      CREATE PROCEDURE cadastro_colaborador(
+	      IN IFName VARCHAR(15),
+	      IN IMinit CHAR(1),
+	      IN ILName VARCHAR(15),
+	      IN IbDate DATE, 
+	      IN IAddress VARCHAR(30),
+	      IN ISex ENUM('M', 'F'),
+	      IN IDno INT)
+	      BEGIN 
+		INSERT INTO employee
+		  (Fname, Minit, Lname, SSN, BDate, Address, Sex, Salary, Super_ssn, Dno)
+		  VALUES 
+		(IFName, IMinit, ILName, ROUND(RAND()*1000000000,0), IbDate, IAddress, ISex, (select min(salary) from employee e where IDno = e.Dno), (select mgr_ssn from departament d where IDno = d.Dnumber), IDno);
+	      END
+	      |
+	      DELIMITER ;
 
-      CALL cadastro_colaborador('Cassiano', 'N', 'Souza', '1995-10-23','J.J Rescala, 209', 'M', 5);
+	      CALL cadastro_colaborador('Cassiano', 'N', 'Souza', '1995-10-23','J.J Rescala, 209', 'M', 5);
