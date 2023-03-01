@@ -1,0 +1,159 @@
+-- DESAFIO DIO MÓDULO 5 - PARTE 1 - QUERY DE TRANSACTION SIMPLES -- 
+
+-- NECESSÁRIO DESABILITAR O AUTOCOMMIT ATRAVÉS DO COMANDO ABAIXO -- 
+      select @@autocommit;
+      SET @@autocommit = 0;
+
+-- AVALIANDO AS TABELAS -- 
+      USE company;
+      SHOW TABLES;
+      SELECT * FROM employee WHERE fName = 'Cassiano';
+      SELECT * FROM dependent;
+
+-- INICIANDO TRANSAÇÃO -- 
+		START TRANSACTION;
+          INSERT INTO dependent VALUES(857860159, 'Julia R', 'F', '2021-05-25', 'Daughter'),
+                        (857860159, 'Eduarda R', 'F', '1998-03-25', 'Wife');
+
+          SELECT * FROM dependent WHERE Essn = 857860159;
+		-- REALIZADO TESTE DO SELECT DENTRO DA TRANSAÇÃO, COMANDO EXECUTADO COM SUCESSO -- 
+		-- REALIZADO TAMBÉM O TESTE EM OUTRO TERMINAL, VERIFICADO QUE INSERTS AINDA NÃO FOI CONCLUÍDO DEVIDO A NÃO EFETIVAÇÃO ATRAVÉS DO COMMIT -- 
+		COMMIT;
+
+-- REPETINDO AS TRANSAÇÕES COM A AVALIAÇÃO E MODIFICAÇÃO DO ISOLAMENTO DE TRANSAÇÃO (CONTROLE DE CONCORRÊNCIA) -- 
+      DELETE FROM dependent WHERE Essn = 857860159;
+
+      START TRANSACTION;
+          INSERT INTO dependent VALUES(857860159, 'Julia R', 'F', '2021-05-25', 'Daughter');
+		-- REALIZADA TENTATIVA DE INSERT EM OUTRO TERMINAL - CONCLUÍDA ANTES DA TRANSAÇÃO ACIMA SER COMMITADA -- 
+		  COMMIT;
+        
+-- AVALIAR CONTROLE DE CONCORRÊNCIA ATRAVÉS DO COMANDO select @@transaction_isolation;
+		  select @@transaction_isolation;	
+        
+-- MODIFICANDO CONTROLE DE CONCORRÊNCIA PARA READ COMMITED E REFAZENDO AS OPERAÇÕES; 
+      DELETE FROM dependent WHERE Essn = 857860159;
+      SET SESSION TRANSACTION ISOLATION LEVEL READ committed;
+      select @@transaction_isolation; 
+
+      START TRANSACTION;
+          INSERT INTO dependent VALUES(857860159, 'Julia R', 'F', '2021-05-25', 'Daughter');
+          SELECT * FROM dependent WHERE Essn = 857860159;
+      -- REALIZADA TENTATIVA DE INSERT EM OUTRO TERMINAL PARA AVALIAR COMPORTAMENTO, TRANSACTION ENTROU EM MODO DE ESPERA ATÉ O COMMIT DA TRANSAÇAO ACIMA -- 
+      COMMIT;
+
+		-- APÓS COMMIT, TRANSAÇÃO DO OUTRO TERMINAL FOI CONCLUÍDA --
+
+-- REALIZADO O DELETE PARA FAZER A MESMA TRANSAÇÃO COM PROCEDURE -- 
+
+
+-- DESAFIO DIO MÓDULO 05 - PARTE 02 - QUERY DE TRANSACTION WITH PROCEDURE -- 
+
+-- PRIMEIRA TENTATIVA - INSERINDO VALORES NÃO COMPATÍVEIS COM O ATRIBUTO PARA TESTE DE ROLLBACK E ERRO -- 
+
+        DELIMITER ||
+        CREATE PROCEDURE insert_dependent()
+        BEGIN
+        DECLARE erro_sql TINYINT DEFAULT FALSE;
+        DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET erro_sql = TRUE;
+        START TRANSACTION;
+          INSERT INTO dependent 
+                      VALUES			
+                        (857860159, 'Julia R', 'FEMALE', '2021-05-25', 'Daughter'),
+                        (857860159, 'Eduarda R', 'F', '1998-03-25', 'Wife');
+          IF erro_sql = FALSE THEN
+            COMMIT;
+            SELECT 'Inserção de dados realizada com sucesso' AS 'Resultado da inserção';
+          ELSE 
+            ROLLBACK;
+            SELECT 'Erro na inserção de dados' AS 'Resultado da inserção';
+          END IF;
+        END||
+        DELIMITER ;
+
+        CALL insert_dependent;
+
+-- RETORNO: 'Erro de inserção de dados' 
+        SELECT * FROM dependent WHERE Essn = 857860159;
+        
+-- APÓS SELECT - NENHUM INSERT CONCLUÍDO -- 
+-- REFAZENDO A TRANSAÇÃO COM AJUSTE DO ERRO NA PROCEDURE -- 
+
+        DROP PROCEDURE insert_dependent;
+
+        DELIMITER ||
+        CREATE PROCEDURE insert_dependent()
+        BEGIN
+        DECLARE erro_sql TINYINT DEFAULT FALSE;
+        DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET erro_sql = TRUE;
+        START TRANSACTION;
+          INSERT INTO dependent 
+                      VALUES			
+                        (857860159, 'Julia R', 'F', '2021-05-25', 'Daughter'),
+                        (857860159, 'Eduarda R', 'F', '1998-03-25', 'Wife');
+          IF erro_sql = FALSE THEN
+            COMMIT;
+            SELECT 'Inserção de dados realizada com sucesso' AS 'Resultado da inserção';
+          ELSE 
+            ROLLBACK;
+            SELECT 'Erro na inserção de dados' AS 'Resultado da inserção';
+          END IF;
+        END||
+        DELIMITER ;
+
+        CALL insert_dependent;
+
+-- RESULTADO: 'Inserção de dados realizada com sucesso -- 
+
+-- UM REFINAMENTO QUE PODERIA SER FEITO NA PROCEDURE SERIA COLOCAR VALORES DE ENTRADA COM 'IN' -- 
+        drop procedure insert_dependent;
+        delete from dependent WHERE Essn = 857860159;
+
+        DELIMITER ||
+        CREATE PROCEDURE insert_dependent(
+        IN newEssn CHAR(9),
+        IN newDependent_name VARCHAR(15),
+        IN newSex CHAR(1),
+        IN newBdate DATE, 
+        IN newRelationship VARCHAR(15))
+        BEGIN
+        DECLARE erro_sql TINYINT DEFAULT FALSE;
+        DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET erro_sql = TRUE;
+        START TRANSACTION;
+          INSERT INTO dependent 
+                      VALUES			
+                        (newEssn, newDependent_name, newSex, newBdate, newRelationship);
+          IF erro_sql = FALSE THEN
+            COMMIT;
+            SELECT 'Inserção de dados realizada com sucesso' AS 'Resultado da inserção';
+          ELSE 
+            ROLLBACK;
+            SELECT 'Erro na inserção de dados' AS 'Resultado da inserção';
+          END IF;
+        END||
+        DELIMITER ;
+
+        CALL insert_dependent(857860159, 'Julia R', 'F', '2021-05-25', 'Daughter');
+-- INSERÇÃO DE DADOS REALIZADA COM SUCESSO -- 
+
+-- NOVO INSERT COM TESTE (SEX INSERIDO COMO 'S') DO ERRO E ROLLBACK --
+        CALL insert_dependent(857860159, 'Eduarda R', 'S', '1998-03-25', 'Wife');
+
+-- VERIFICADO QUE COM ESSE MODELO, O CENÁRIO DE ERRO NÃO É RETORNADO DEVIDO AO SQL NÃO ACEITAR O CALL COM PARÂMETROS INDEVIDOS -- 
+
+-- DESAFIO DIO MÓDULO 5 - PARTE 3 - QUERY BACKUP E RECOVERY --
+
+        # Realizando backup do database ecommerce: 
+        -- 1. Abrir o CMD em modo administrador.
+        -- 2. Abrir o CD C:\Program Files\MySQL\MySQL Server 8.0\bin\ 
+        -- 3. Executar o comando mysqldump -u root -p --routines --triggers --databases ecommerce > ecommerce_backup.sql
+
+        # Realizando backup do database ecommerce: 
+        -- 1. Abrir o CMD em modo administrador.
+        -- 2. Abrir o CD C:\Program Files\MySQL\MySQL Server 8.0\bin\ 
+        -- 3. Executar o comando mysqldump -u root -p < ecommerce_backup.sql
+
+        # Realizando backup de banco de dados ecommerce e oficina: 
+        -- 1. Abrir o CMD em modo administrador.
+        -- 2. Abrir o CD C:\Program Files\MySQL\MySQL Server 8.0\bin\ 
+        -- 3. Executar o comando mysqldump -u root -p --databases ecommerce oficina > oficina_ecommerce_bck.sql
